@@ -11,6 +11,10 @@
 import { ref, defineComponent, onMounted } from "vue";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import worldGeo from "../assets/geojson/world.geo";
+import countryLine from "../utils/countryLine";
+
+console.log(worldGeo)
 
 import envConifg from "../config/earth.config";
 export default defineComponent ({
@@ -28,7 +32,7 @@ export default defineComponent ({
 
     let orbitControls = {};
 
-    const r = 100; // 半径
+    const r = 120; // 半径
 
     const axisHelper = new THREE.AxesHelper(120);
     const textureLoader = new THREE.TextureLoader();
@@ -97,7 +101,7 @@ export default defineComponent ({
 
     function initEarth() {
       // 把背景图加载过来当做纹理。
-      const texture = textureLoader.load(envConifg.earthBg);
+      const texture = textureLoader.load(envConifg.earth2);
       texture.center.set(0, 0);
       // 这个绘制球体
       const geometry = new THREE.SphereGeometry(r, 50, 50);
@@ -109,6 +113,16 @@ export default defineComponent ({
       mesh.earth = new THREE.Mesh(geometry, material);
       scene.add(mesh.earth);
     }
+
+    // function initEarth() {
+    //   worldGeo.features.forEach((country) => {
+    //     if (country.geometry.type === "Polygon") {
+    //       country.geometry.coordinates = [country.geometry.coordinates];
+    //     }
+    //     var line = countryLine(r, country.geometry.coordinates);
+    //     scene.add(line);
+    //   });
+    // }
 
     function animate() {
       orbitControls.update();
@@ -133,7 +147,7 @@ export default defineComponent ({
       // initBg();
       initEarth();
       glRender();
-      animate();
+      // animate();
     });
 
     return {

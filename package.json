@@ -7,6 +7,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "echarts": "^5.2.2",
+    "echarts-gl": "^2.0.8",
     "three": "^0.135.0",
     "vue": "^3.2.25"
   },
