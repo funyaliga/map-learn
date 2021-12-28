@@ -1,7 +1,7 @@
 <template>
 <div>
   <cc-map3 id="map"></cc-map3>
-  <cc-map1 id="map"></cc-map1>
+  <!-- <cc-map1 id="map"></cc-map1> -->
   <!-- <cc-map2 id="map2"></cc-map2> -->
 </div>
 </template>
