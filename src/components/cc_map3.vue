@@ -22,7 +22,7 @@ export default defineComponent ({
     const mapRef = ref();
 
     const worldDotRows = 160; // 密度
-    const worldDotSize = .1
+    const worldDotSize = .2
 
     const Ml = Math.PI / 180
     const fl = 16777215 //0xffffff
@@ -60,38 +60,73 @@ export default defineComponent ({
     }
 
     function initScene() {
-      // const light0 = new THREE.SpotLight(0xffffff,12,120,.3,0,1.1);
-      // const light1 = new THREE.DirectionalLight(11124735,3);
-      // const light3 = new THREE.SpotLight(0xffffff,5,75,.5,0,1.25);
-      // light0.target = parentContainer;
-      // light1.target = parentContainer;
-      // light3.target = parentContainer;
-      // scene.add(light0, light1, light3);
-      // parentContainer.position.set(0, 0, 0);
-      // const shadowPoint = (new THREE.Vector3).copy(parentContainer.position).add(new THREE.Vector3(.7 * GLOBE_RADIUS,.3 * -GLOBE_RADIUS,GLOBE_RADIUS));
-      // const highlightPoint = (new THREE.Vector3).copy(parentContainer.position).add(new THREE.Vector3(1.5 * -GLOBE_RADIUS,1.5 * -GLOBE_RADIUS,0));
-      // const frontPoint = (new THREE.Vector3).copy(parentContainer.position).add(new THREE.Vector3(0,0,GLOBE_RADIUS));
-      // const earth = new Earth({
-      //   radius: GLOBE_RADIUS,
-      //   detail: 55,
-      //   renderer: renderer,
-      //   shadowPoint: shadowPoint,
-      //   shadowDist: 1.5 * GLOBE_RADIUS,
-      //   highlightPoint: highlightPoint,
-      //   highlightColor: 0xffffff,
-      //   highlightDist: 5,
-      //   frontPoint: frontPoint,
-      //   frontHighlightColor: 0xffffff,
-      //   waterColor: 0xffffff,
-      //   landColorFront: fl,
-      //   landColorBack: fl
-      // });
-
-      // container.add(earth.mesh);
-      var geometry = new THREE.SphereBufferGeometry( 5, 32, 32 ); 
-      var material = new THREE.MeshBasicMaterial( {color: 0xffffff} ); 
-      var sphere = new THREE.Mesh( geometry, material ); 
+      let canvas = document.createElement( 'canvas' );
+      canvas.width = 256;
+      canvas.height = 256;
+      let context = canvas.getContext( '2d' );
+      let gradient = context.createRadialGradient( canvas.width / 2, canvas.height / 2, 0, canvas.width / 2, canvas.height / 2, canvas.width / 2 );//创建一个圆形渐变对象
+      gradient.addColorStop( 0.1, 'rgba(119,135,234,1)' );//内圈的颜色
+      gradient.addColorStop( 1, 'rgba(181,198,248,1)' );//最外面的颜色
+      context.fillStyle = gradient;
+      context.fillRect( 0, 0, canvas.width, canvas.height );
+      let shadowTexture = new THREE.CanvasTexture( canvas );//把刚刚画好的画布拿来作为画布贴图
+      let shadowMaterial = new THREE.MeshBasicMaterial( { map: shadowTexture,transparent:true } );//用此贴图来当材质
+      var geometry = new THREE.SphereBufferGeometry( GLOBE_RADIUS, 32, 32 ); 
+      var sphere = new THREE.Mesh( geometry, shadowMaterial ); 
       scene.add( sphere );
+    }
+
+    function initDot() {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          const map = getImageData(img);
+          const light = new THREE.Light('#ffffff')
+          const list = [];
+          for (let lat = -90; lat <= 90; lat += 180/worldDotRows) {
+            const radius = Math.cos(Math.abs(lat) * Ml) * GLOBE_RADIUS;
+            const circumference = radius * Math.PI * 2; // 周长
+            const dotsForLat = circumference * 2; // 维度点
+            
+            for (let x = 0; x < dotsForLat; x++) {
+              const long = -180 + x * 360/dotsForLat;
+              if (!visibilityForCoordinate(long, lat, map)) continue;
+              const start = Rl(lat, long, GLOBE_RADIUS);
+              light.position.set(start.x, start.y, start.z); 
+              const end = Rl(lat, long, GLOBE_RADIUS + 5);
+              light.lookAt(end.x, end.y, end.z); 
+              light.updateMatrix()
+              list.push(light.matrix.clone())
+            }
+          }
+          const geometry = new THREE.CircleBufferGeometry(worldDotSize, 8);
+          const material = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            // metalness: 0,
+            roughness: .9,
+            // transparent: !0,
+            side: THREE.DoubleSide,
+            // alphaTest: .02
+          });
+          // material.onBeforeCompile = function(t) {
+          //   t.fragmentShader = t.fragmentShader.replace("gl_FragColor = vec4( outgoingLight, diffuseColor.a );", "\n        gl_FragColor = vec4( outgoingLight, diffuseColor.a );\n        if (gl_FragCoord.z > 0.51) {\n          gl_FragColor.a = 1.0 + ( 0.51 - gl_FragCoord.z ) * 17.0;\n        }\n      ")
+          // }
+          console.log(list);
+          const meshs = new THREE.InstancedMesh(geometry, material, list.length);
+          for (let i = 0; i < list.length; i++)
+            meshs.setMatrixAt(i, list[i]);
+          
+          meshs.renderOrder = 3
+          
+          worldMesh = meshs;
+
+          meshs.name = 'points';
+
+          container.add(meshs)
+          resolve();
+        }
+        img.src = envConifg.base;
+      })
     }
 
     function getImageData(t) {
@@ -119,7 +154,7 @@ export default defineComponent ({
     }
 
     
-    onMounted(() => {
+    onMounted(async () => {
       renderer = new THREE.WebGLRenderer({
         antialias: true,
         alpha: true,
@@ -137,7 +172,7 @@ export default defineComponent ({
       renderer.setSize(width, height);
       renderer.setClearColor(0x99CCCC, 1.0);
       
-      camera = new THREE.PerspectiveCamera(20, width / height, 1,260)
+      camera = new THREE.PerspectiveCamera(30, width / height, 1, 260)
       // camera = new THREE.PerspectiveCamera(20, width / height, 170,260)
       // camera = new THREE.PerspectiveCamera(
       //   60,
@@ -149,62 +184,12 @@ export default defineComponent ({
 
       initScene();
       
+      await initDot();
      
-      const img = new Image();
-      img.onload = () => {
-        const light = new THREE.Light()
-        const map = getImageData(img);
-        const list = [];
-        for (let lat = -90; lat <= 90; lat += 180/worldDotRows) {
-          const radius = Math.cos(Math.abs(lat) * Ml) * GLOBE_RADIUS;
-          const circumference = radius * Math.PI * 2; // 周长
-          const dotsForLat = circumference * 2; // 维度点
-          
-          for (let x = 0; x < dotsForLat; x++) {
-            const long = -180 + x*360/dotsForLat;
-            if (!visibilityForCoordinate(long, lat, map)) continue;
-            const start = Rl(lat, long, GLOBE_RADIUS);
-            light.position.set(start.x, start.y, start.z); 
-            const end = Rl(lat, long, GLOBE_RADIUS + 5);
-            light.lookAt(end.x, end.y, end.z); 
-            light.updateMatrix()
-            list.push(light.matrix.clone())
-          }
-
-          const geometry = new THREE.CircleBufferGeometry(worldDotSize, 5);
-          const material = new THREE.MeshStandardMaterial({
-            color: 3818644,
-            metalness: 0,
-            roughness: .9,
-            // transparent: !0,
-            side: THREE.DoubleSide,
-            alphaTest: .02
-          });
-          material.onBeforeCompile = function(t) {
-            t.fragmentShader = t.fragmentShader.replace("gl_FragColor = vec4( outgoingLight, diffuseColor.a );", "\n        gl_FragColor = vec4( outgoingLight, diffuseColor.a );\n        if (gl_FragCoord.z > 0.51) {\n          gl_FragColor.a = 1.0 + ( 0.51 - gl_FragCoord.z ) * 17.0;\n        }\n      ")
-          }
-          const meshs = new THREE.InstancedMesh(geometry, material, list.length);
-          for (let i = 0; i < list.length; i++)
-            meshs.setMatrixAt(i, list[i]);
-          
-          meshs.renderOrder = 3
-          
-          worldMesh = meshs;
-
-          meshs.name = 'points';
-
-          container.add(meshs)
-        }
-
-        
-        initOrbitControls();
-        renderer.render(scene, camera)
-        animate()
-      }
-      img.src = envConifg.base;
+      initOrbitControls();
+      renderer.render(scene, camera)
+      animate()
       
-      
-
     });
 
     return {
