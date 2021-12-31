@@ -131,6 +131,7 @@ export default defineComponent ({
       renderer.render(scene, camera);
       requestAnimationFrame(animate);
     }
+    mesh.earth.rotation.y -= 0.002;
 
     function glRender() {
       renderer.render(scene, camera);

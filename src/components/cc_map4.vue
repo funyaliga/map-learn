@@ -37,6 +37,7 @@ export default defineComponent ({
 
     let group = new THREE.Group();
 
+
     const r = 120; // 半径
     const radius = 120; // 半径
 
@@ -51,7 +52,7 @@ export default defineComponent ({
     }
 
     function initCamera() {
-      camera = new THREE.PerspectiveCamera( 45, mapRef.value.clientWidth / mapRef.value.clientHeight, 1, 10000 );
+      camera = new THREE.PerspectiveCamera( 72, mapRef.value.clientWidth / mapRef.value.clientHeight, 1, 10000 );
       camera.position.set( 5, - 20, 200 );
       camera.lookAt( 0, 3, 0 );
     }
@@ -138,9 +139,18 @@ export default defineComponent ({
       scene.add( stars );
     }
 
+    // 椭圆体
+    function renderEllipsoid() {
+      const geometry = new THREE.SphereGeometry( radius, 100, 100 );
+      // const material = new THREE.MeshBasicMaterial( { color: 0xffff00 } );
+      geometry.applyMatrix( new THREE.Matrix4().makeScale( 1.0, 0.8, 0.8 ) );
+      const msh = new THREE.Mesh( geometry, material );
+      scene.add( msh );
+    }
+
     function initEarth() {
-      const texture = textureLoader.load(earthPng);
       var globeGgeometry = new THREE.SphereGeometry( radius, 100, 100 );
+      const texture = textureLoader.load(earthPng);
       var globeMaterial = new THREE.MeshStandardMaterial( { map: texture } );
       var globeMesh = new THREE.Mesh( globeGgeometry, globeMaterial );
       group.rotation.set( 0.5, 2.9, 0.1 );
@@ -154,6 +164,7 @@ export default defineComponent ({
      **/
     function animate() {
       if (controls) controls.update();
+      // mesh.test.rotation.y += .001;
       group.rotation.y += .001;
       renders();
       requestAnimationFrame(animate);
@@ -166,13 +177,14 @@ export default defineComponent ({
       initLight();
       initControls();
       renderStar();
-      initEarth();
+
+        initEarth();
       animate();
     });
 
     return {
-			mapRef
-		}
+      mapRef
+    }
   },
 })
 

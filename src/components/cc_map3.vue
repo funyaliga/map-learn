@@ -1,65 +1,137 @@
 <template>
   <div class="wrap">
     <div class="map" ref="mapRef"></div>
-    <!-- <div class="shadows"></div>
-    <div class="light"></div> -->
+    <div class="shadows"></div>
+    <div class="light"></div>
     <div class="test"></div>
   </div>
 </template>
 
 <script>
 import { ref, defineComponent, onMounted } from "vue";
-
-
-import envConifg from "../config/earth.config";
-import mapImg from '../assets/images/map.png'
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import Earth from "../utils/earth";
+import worldGeo from "../assets/geojson/world.geo";
+import countryLine from "../utils/countryLine";
+import envConifg from "../config/earth.config";
+import starPng from "./a60226ea.png";
+import earthPng from "./97ab87cd.png";
+import earth2Png from "../assets/images/世界地图1.png";
+
 
 export default defineComponent ({
   setup() {
     const mapRef = ref();
 
-    const worldDotRows = 160; // 密度
-    const worldDotSize = .2
+    // 场景
+    let scene = new THREE.Scene();
+    // 模型
+    let mesh = {};
+    // 相机
+    let camera = {};
+    // 相机设置
+    let renderer = {};
+
+    let controls = {};
+
+    let container = new THREE.Group();
+    let parentContainer = new THREE.Group();
+    let group = new THREE.Group();
 
     const Ml = Math.PI / 180
-    const fl = 16777215 //0xffffff
-    const colorMl = 2197759  //0x2188ff
-    const colorGl = 16018366 //0xf46bbe
-    const GLOBE_RADIUS = 25  // 半径
+    const worldDotRows = 120; // 密度
+    const worldDotSize = 1
 
-    const scene = new THREE.Scene();
-    let container = {};
-    let parentContainer = {}
+    const GLOBE_RADIUS = 120; // 半径
+
     const axisHelper = new THREE.AxesHelper(120);
-    let renderer = {};
-    let camera = {};
-    let orbitControls = {};
-    let worldMesh = [];
+    const textureLoader = new THREE.TextureLoader();
+    
+    function getImageData(t) {
+      const e = document.createElement("canvas").getContext("2d");
+      return e.canvas.width = t.width,
+      e.canvas.height = t.height,
+      e.drawImage(t, 0, 0, t.width, t.height),
+      e.getImageData(0, 0, t.width, t.height)
+    }
+    function visibilityForCoordinate(t, e, n) {
+      const i = 4 * n.width
+        , r = parseInt((t + 180) / 360 * n.width + .5)
+        , s = n.height - parseInt((e + 90) / 180 * n.height - .5)
+        , o = parseInt(i * (s - 1) + 4 * r) + 3;
+      return n.data[o] > 90
+    }
 
     function Rl(t, e, n, i) {
       i = i || new THREE.Vector3;
-      const r = (90 - t) * Ml
-        , s = (e + 180) * Ml;
+      const r = (90 - t) * Ml, s = (e + 180) * Ml;
       return i.set(-n * Math.sin(r) * Math.cos(s), n * Math.cos(r), n * Math.sin(r) * Math.sin(s)),
       i
     }
 
-    function initOrbitControls() {
-      const os = new OrbitControls(camera, renderer.domElement);
-      os.target = new THREE.Vector3(0, 0, 0); //控制焦点
-      // os.autoRotate = false; //将自动旋转关闭
-      // os.enablePan = false; // 不禁止鼠标平移, 可以用键盘来平移
-      os.enableZoom = true; //禁止缩放
-      // os.enableRotate = false; //禁止旋转
-      os.maxDistance = 1000; // 最大外移动
-      os.minDistance = 100; // 向内最小外移动
-      orbitControls = os;
+    function initRenderer() {
+      renderer = new THREE.WebGLRenderer( { antialias: true, alpha: true } );
+      renderer.setPixelRatio( window.devicePixelRatio );
+      renderer.setSize( mapRef.value.clientWidth, mapRef.value.clientHeight );
+      mapRef.value.appendChild( renderer.domElement );
     }
 
+    function initCamera() {
+      camera = new THREE.PerspectiveCamera( 72, mapRef.value.clientWidth / mapRef.value.clientHeight, 1, 10000 );
+      camera.position.set( 5, - 20, 200 );
+      camera.lookAt( 0, 3, 0 );
+    }
+
+    /**
+     * @description 初始化场景
+     */
     function initScene() {
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color( 0x020924 );
+      scene.fog = new THREE.Fog( 0x020924, 200, 1000 );
+      scene.add(container)
+    }
+   
+    function initControls() {
+      controls = new OrbitControls( camera, renderer.domElement );
+      controls.enableDamping = true;
+      controls.enableZoom = true;
+      controls.autoRotate = false;
+      controls.autoRotateSpeed = 2;
+      controls.enablePan = true;
+    }
+
+    function initLight() {
+      const ambientLight = new THREE.AmbientLight( 0xcccccc, 1.1 );
+      scene.add( ambientLight );
+      var directionalLight = new THREE.DirectionalLight( 0xffffff, 0.2 );
+      directionalLight.position.set( 1, 0.1, 0 ).normalize();
+      var directionalLight2 = new THREE.DirectionalLight( 0xff2ffff, 0.2 );
+      directionalLight2.position.set( 1, 0.1, 0.1 ).normalize();
+      scene.add( directionalLight );
+      scene.add( directionalLight2 );
+      var hemiLight = new THREE.HemisphereLight( 0xffffff, 0x444444, 0.2 );
+      hemiLight.position.set( 0, 1, 0 );
+      scene.add( hemiLight );
+      var directionalLight = new THREE.DirectionalLight( 0xffffff );
+      directionalLight.position.set( 1, 500, - 20 );
+      directionalLight.castShadow = true;
+      directionalLight.shadow.camera.top = 18;
+      directionalLight.shadow.camera.bottom = - 10;
+      directionalLight.shadow.camera.left = - 52;
+      directionalLight.shadow.camera.right = 12;
+      scene.add(directionalLight);
+    }
+
+    /**
+   * @description 渲染
+   */
+    function renders() {
+      renderer.clear();
+      renderer.render( scene, camera );
+    }
+
+     function renderMapBg() {
       let canvas = document.createElement( 'canvas' );
       canvas.width = 256;
       canvas.height = 256;
@@ -76,7 +148,41 @@ export default defineComponent ({
       scene.add( sphere );
     }
 
-    function initDot() {
+    function renderStar() {
+      const positions = [];
+      const colors = [];
+      const geometry = new THREE.BufferGeometry();
+      for (var i = 0; i < 10000; i ++) {
+        var vertex = new THREE.Vector3();
+        vertex.x = Math.random() * 2 - 1;
+        vertex.y = Math.random() * 2 - 1;
+        vertex.z = Math.random() * 2 - 1;
+        positions.push( vertex.x, vertex.y, vertex.z );
+        var color = new THREE.Color();
+        color.setHSL( Math.random() * 0.2 + 0.5, 0.55, Math.random() * 0.25 + 0.55 );
+        colors.push( color.r, color.g, color.b );
+      }
+      geometry.setAttribute( 'position', new THREE.Float32BufferAttribute( positions, 3 ) );
+      geometry.setAttribute( 'color', new THREE.Float32BufferAttribute( colors, 3 ) );
+
+      const texture = textureLoader.load(starPng);
+
+      var starsMaterial = new THREE.ParticleBasicMaterial( {
+        map: texture,
+        size: 1,
+        transparent: true,
+        opacity: 1,
+        vertexColors: true, //true：且该几何体的colors属性有值，则该粒子会舍弃第一个属性--color，而应用该几何体的colors属性的颜色
+        blending: THREE.AdditiveBlending,
+        sizeAttenuation: true
+      } );
+
+      let stars = new THREE.ParticleSystem( geometry, starsMaterial );
+      stars.scale.set( 300, 300, 300 );
+      scene.add( stars );
+    }
+
+    function renderMap() {
       return new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => {
@@ -86,8 +192,7 @@ export default defineComponent ({
           for (let lat = -90; lat <= 90; lat += 180/worldDotRows) {
             const radius = Math.cos(Math.abs(lat) * Ml) * GLOBE_RADIUS;
             const circumference = radius * Math.PI * 2; // 周长
-            const dotsForLat = circumference * 2; // 维度点
-            
+            const dotsForLat = circumference * 0.4; // 维度点
             for (let x = 0; x < dotsForLat; x++) {
               const long = -180 + x * 360/dotsForLat;
               if (!visibilityForCoordinate(long, lat, map)) continue;
@@ -99,7 +204,7 @@ export default defineComponent ({
               list.push(light.matrix.clone())
             }
           }
-          const geometry = new THREE.CircleBufferGeometry(worldDotSize, 8);
+          const geometry = new THREE.CircleBufferGeometry(worldDotSize, 36);
           const material = new THREE.MeshStandardMaterial({
             color: 0xffffff,
             // metalness: 0,
@@ -108,93 +213,53 @@ export default defineComponent ({
             side: THREE.DoubleSide,
             // alphaTest: .02
           });
-          // material.onBeforeCompile = function(t) {
-          //   t.fragmentShader = t.fragmentShader.replace("gl_FragColor = vec4( outgoingLight, diffuseColor.a );", "\n        gl_FragColor = vec4( outgoingLight, diffuseColor.a );\n        if (gl_FragCoord.z > 0.51) {\n          gl_FragColor.a = 1.0 + ( 0.51 - gl_FragCoord.z ) * 17.0;\n        }\n      ")
-          // }
-          console.log(list);
+          material.onBeforeCompile = function(t) {
+            t.fragmentShader = t.fragmentShader.replace("gl_FragColor = vec4( outgoingLight, diffuseColor.a );", "\n        gl_FragColor = vec4( outgoingLight, diffuseColor.a );\n        if (gl_FragCoord.z > 0.51) {\n          gl_FragColor.a = 1.0 + ( 0.51 - gl_FragCoord.z ) * 17.0;\n        }\n      ")
+          }
           const meshs = new THREE.InstancedMesh(geometry, material, list.length);
-          for (let i = 0; i < list.length; i++)
+          for (let i = 0; i < list.length; i++) {
             meshs.setMatrixAt(i, list[i]);
+          }
           
           meshs.renderOrder = 3
-          
-          worldMesh = meshs;
 
           meshs.name = 'points';
 
           container.add(meshs)
+          container.rotation.set( 0.5, 2.9, 0.1 );
           resolve();
         }
         img.src = envConifg.base;
       })
     }
 
-    function getImageData(t) {
-        const e = document.createElement("canvas").getContext("2d");
-        return e.canvas.width = t.width,
-        e.canvas.height = t.height,
-        e.drawImage(t, 0, 0, t.width, t.height),
-        e.getImageData(0, 0, t.width, t.height)
-    }
-
-    function visibilityForCoordinate(t, e, n) {
-      const i = 4 * n.width
-        , r = parseInt((t + 180) / 360 * n.width + .5)
-        , s = n.height - parseInt((e + 90) / 180 * n.height - .5)
-        , o = parseInt(i * (s - 1) + 4 * r) + 3;
-      return n.data[o] > 90
-    }
-
+    /**
+     * 更新
+     **/
     function animate() {
-      orbitControls.update();
-      // 地球自转
-      // mesh.earth.rotation.y -= 0.002;
-      renderer.render(scene, camera);
+      if (controls) controls.update();
+      // mesh.test.rotation.y += .001;
+      container.rotation.y += .001;
+      renders();
       requestAnimationFrame(animate);
     }
 
-    
-    onMounted(async () => {
-      renderer = new THREE.WebGLRenderer({
-        antialias: true,
-        alpha: true,
-      });
-      const {width, height} = mapRef.value.parentNode.getBoundingClientRect();
-
-      container = new THREE.Group();
-      container.name = "container";
-      parentContainer = new THREE.Group();
-      parentContainer.name = "parentContainer"
-      parentContainer.add(container)
-      scene.add(container)
-      scene.add(axisHelper)
-
-      renderer.setSize(width, height);
-      renderer.setClearColor(0x99CCCC, 1.0);
-      
-      camera = new THREE.PerspectiveCamera(30, width / height, 1, 260)
-      // camera = new THREE.PerspectiveCamera(20, width / height, 170,260)
-      // camera = new THREE.PerspectiveCamera(
-      //   60,
-      //   width / height,
-      //   1,
-      //   2000
-      // );
-      mapRef.value.appendChild(renderer.domElement);
-
+    onMounted(() => {
+      initRenderer();
+      initCamera();
       initScene();
-      
-      await initDot();
-     
-      initOrbitControls();
-      renderer.render(scene, camera)
-      animate()
-      
+      initLight();
+      initControls();
+      // renderStar();
+      renderMapBg();
+      renderMap();
+
+      animate();
     });
 
     return {
-			mapRef
-		}
+      mapRef
+    }
   },
 })
 
@@ -211,7 +276,7 @@ export default defineComponent ({
   width: 700px;
   height: 700px;
   border-radius: 50%;
-  /* background-image: url(../assets/images/地球底色.png); */
+  background-image: url(../assets/images/地球底色.png);
   overflow: hidden;
 }
 
@@ -224,6 +289,7 @@ export default defineComponent ({
   overflow: hidden;
   border-radius: 50%;
   z-index: 10;
+  pointer-events: none;
 }
 .shadows {
   background-image: url(../assets/images/阴影-柔光.png);
@@ -236,12 +302,5 @@ export default defineComponent ({
   mix-blend-mode: color-dodge;
 }
 
-/* .test{
-  background: #000;
-  width: 50%;
-  height: 200px;
-  position: absolute;
-  top: 300px;
-  left: 0;
-} */
+
 </style>
