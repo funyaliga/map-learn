@@ -13,6 +13,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import worldGeo from "../assets/geojson/world.geo";
 import countryLine from "../utils/countryLine";
+import lightHelp from "../utils/lightHelp";
 import envConifg from "../config/earth.config";
 import starPng from "./a60226ea.png";
 import earthPng from "./97ab87cd.png";
@@ -104,15 +105,21 @@ export default defineComponent ({
     function initLight() {
       const ambientLight = new THREE.AmbientLight( 0xcccccc, 1.1 );
       scene.add( ambientLight );
+
       var directionalLight = new THREE.DirectionalLight( 0xffffff, 0.2 );
       directionalLight.position.set( 1, 0.1, 0 ).normalize();
       var directionalLight2 = new THREE.DirectionalLight( 0xff2ffff, 0.2 );
-      directionalLight2.position.set( 1, 0.1, 0.1 ).normalize();
+      directionalLight2.position.set( 100, 0.1, 0.1 ).normalize();
       scene.add( directionalLight );
       scene.add( directionalLight2 );
+
+      const lightHelper = new THREE.SpotLightHelper( directionalLight2 );
+      scene.add(lightHelper);
+
       var hemiLight = new THREE.HemisphereLight( 0xffffff, 0x444444, 0.2 );
       hemiLight.position.set( 0, 1, 0 );
       scene.add( hemiLight );
+      
       var directionalLight = new THREE.DirectionalLight( 0xffffff );
       directionalLight.position.set( 1, 500, - 20 );
       directionalLight.castShadow = true;
@@ -121,6 +128,8 @@ export default defineComponent ({
       directionalLight.shadow.camera.left = - 52;
       directionalLight.shadow.camera.right = 12;
       scene.add(directionalLight);
+
+      lightHelp(scene, directionalLight)
     }
 
     /**
@@ -251,7 +260,7 @@ export default defineComponent ({
       initLight();
       initControls();
       // renderStar();
-      renderMapBg();
+      // renderMapBg();
       renderMap();
 
       animate();
